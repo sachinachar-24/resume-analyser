@@ -1,1 +1,17 @@
+# Environment Variables
 .env
+
+# Python
+__pycache__/
+*.pyc
+
+# uv specific
+.venv/
+uv.lock
+.python-version
+
+# Qdrant Database
+qdrant_storage/
+
+# Uploaded Files
+uploads/
