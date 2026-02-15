@@ -24,6 +24,7 @@ app.add_middleware(
 # ----------------------------------------------------------------------
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 if not GROQ_API_KEY:
+    print("Please add GROQ_API_KEY")
     raise RuntimeError("❗️ Set the GROQ_API_KEY environment variable before starting the server")
 
 client = Groq(api_key=GROQ_API_KEY)
