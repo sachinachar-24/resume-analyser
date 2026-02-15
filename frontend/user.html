@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Seeker Portal - Resume Analyzer</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="navbar user-nav">
+        <div class="nav-content">
+            <h1>🎓 Job Seeker Portal</h1>
+            <a href="index.html" class="btn-secondary">← Back to Home</a>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="two-column-layout">
+            <!-- Left Sidebar: My Resumes -->
+            <div class="sidebar">
+                <div class="section-header">
+                    <h2>My Resumes</h2>
+                    <button class="btn-primary" onclick="openUploadResumeModal()">+ Upload</button>
+                </div>
+                <div id="resumes-list" class="resumes-list">
+                    <p class="loading-text">Loading resumes...</p>
+                </div>
+            </div>
+
+            <!-- Right Panel: Job Matching -->
+            <div class="main-panel">
+                <div class="section">
+                    <h2>Match Resume to Jobs</h2>
+                    <div id="selected-resume-info" class="selected-info">
+                        <p class="empty-state">← Select a resume from the left to begin</p>
+                    </div>
+
+                    <div id="job-descriptions-section" style="display: none;">
+                        <div class="section-header">
+                            <h3>Job Descriptions Library</h3>
+                            <div>
+                                <button class="btn-secondary" onclick="loadSavedJobDescriptions()">📚 Load Saved Jobs</button>
+                                <button class="btn-secondary" onclick="openAddJobModal()">+ Add New Job</button>
+                            </div>
+                        </div>
+                        
+                        <div id="jobs-list" class="jobs-list-simple">
+                            <p class="empty-state">Add job descriptions or load from your saved library</p>
+                        </div>
+
+                        <div style="margin-top: 15px;">
+                            <button id="matchButton" class="btn-primary" onclick="matchJobs()" style="display: none;">
+                                🎯 Analyze Job Matches
+                            </button>
+                            <button id="saveJobsButton" class="btn-secondary" onclick="saveAllJobsToLibrary()" style="display: none; margin-left: 10px;">
+                                💾 Save All to Library
+                            </button>
+                        </div>
+
+                        <div id="cached-results-section" style="display: none; margin-top: 20px;">
+                            <div class="cached-results-banner">
+                                <div>
+                                    <strong>📊 Previous Analysis Available</strong>
+                                    <p id="cached-timestamp" class="cached-timestamp"></p>
+                                </div>
+                                <div>
+                                    <button class="btn-secondary" onclick="showCachedResults()">View Results</button>
+                                    <button class="btn-primary" onclick="matchJobs()">🔄 Re-analyze</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="match-results" class="match-results" style="display: none;">
+                            <h3>Match Results</h3>
+                            <div id="ranked-jobs-list" class="ranked-list"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Resume Modal -->
+    <div id="uploadResumeModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('uploadResumeModal')">&times;</span>
+            <h2>Upload Resume</h2>
+            <form id="uploadResumeForm" onsubmit="uploadResume(event)">
+                <div class="form-group">
+                    <label for="resumeName">Resume Name *</label>
+                    <input type="text" id="resumeName" required placeholder="e.g., Software Developer Resume">
+                </div>
+                <div class="form-group">
+                    <label for="resumeFile">Select Resume PDF *</label>
+                    <input type="file" id="resumeFile" accept="application/pdf" required>
+                </div>
+                <button type="submit" class="btn-primary">Upload Resume</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Job Description Modal -->
+    <div id="addJobModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('addJobModal')">&times;</span>
+            <h2>Add Job Description</h2>
+            <form id="addJobForm" onsubmit="addJobDescription(event)">
+                <div class="form-group">
+                    <label for="jobTitle">Job Title *</label>
+                    <input type="text" id="jobTitle" required placeholder="e.g., Senior Data Scientist">
+                </div>
+                <div class="form-group">
+                    <label for="jobDesc">Job Description *</label>
+                    <textarea id="jobDesc" required rows="10" 
+                        placeholder="Paste the full job description including requirements, responsibilities, qualifications..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="saveToLibrary" checked>
+                        Save to my job descriptions library for future use
+                    </label>
+                </div>
+                <button type="submit" class="btn-primary">Add Job</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        const API_BASE = 'http://localhost:8080/api';
+        let selectedResumeId = null;
+        let jobDescriptions = [];
+        let cachedResults = null;
+
+        // Load resumes on page load
+        window.addEventListener('DOMContentLoaded', loadResumes);
+
+        async function loadResumes() {
+            try {
+                const response = await fetch(`${API_BASE}/user/resumes`);
+                const data = await response.json();
+                displayResumes(data.resumes);
+            } catch (error) {
+                displayError('Failed to load resumes');
+                console.error(error);
+            }
+        }
+
+        function displayResumes(resumes) {
+            const list = document.getElementById('resumes-list');
+            
+            if (!resumes || resumes.length === 0) {
+                list.innerHTML = '<p class="empty-state">No resumes uploaded yet. Upload your first resume!</p>';
+                return;
+            }
+
+            list.innerHTML = resumes.map(resume => `
+                <div class="resume-item ${selectedResumeId === resume.resume_id ? 'selected' : ''}" 
+                     onclick="selectResume('${resume.resume_id}', '${escapeHtml(resume.resume_name)}')">
+                    <div class="resume-item-content">
+                        <h4>${escapeHtml(resume.resume_name)}</h4>
+                        <p class="resume-meta">${escapeHtml(resume.filename)}</p>
+                        <p class="resume-meta-small">${formatDate(resume.uploaded_at)}</p>
+                    </div>
+                    <div class="resume-actions">
+                        <button class="btn-icon" onclick="event.stopPropagation(); openPDF('${resume.resume_id}')" title="View PDF">
+                            📄
+                        </button>
+                        <button class="btn-icon-danger" onclick="event.stopPropagation(); deleteResume('${resume.resume_id}', '${escapeHtml(resume.resume_name)}')" title="Delete">
+                            🗑️
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function selectResume(resumeId, resumeName) {
+            selectedResumeId = resumeId;
+            jobDescriptions = [];
+            cachedResults = null;
+            
+            // Update UI
+            document.getElementById('selected-resume-info').innerHTML = `
+                <div class="selected-resume-card">
+                    <h3>Selected Resume</h3>
+                    <p class="selected-resume-name">📄 ${escapeHtml(resumeName)}</p>
+                </div>
+            `;
+            
+            document.getElementById('job-descriptions-section').style.display = 'block';
+            document.getElementById('jobs-list').innerHTML = '<p class="empty-state">Add job descriptions or load from your saved library</p>';
+            document.getElementById('matchButton').style.display = 'none';
+            document.getElementById('saveJobsButton').style.display = 'none';
+            document.getElementById('match-results').style.display = 'none';
+            document.getElementById('cached-results-section').style.display = 'none';
+            
+            // Update selected state in list
+            document.querySelectorAll('.resume-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            event.target.closest('.resume-item').classList.add('selected');
+            
+            // Check for cached results
+            checkCachedResults(resumeId);
+            
+            loadResumes(); // Refresh to update selected state
+        }
+
+        function openUploadResumeModal() {
+            document.getElementById('uploadResumeModal').style.display = 'block';
+        }
+
+        async function uploadResume(event) {
+            event.preventDefault();
+            
+            const formData = new FormData();
+            formData.append('file', document.getElementById('resumeFile').files[0]);
+            formData.append('resume_name', document.getElementById('resumeName').value);
+
+            try {
+                const response = await fetch(`${API_BASE}/user/resumes`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) throw new Error('Failed to upload resume');
+
+                const data = await response.json();
+                showSuccess('Resume uploaded successfully!');
+                closeModal('uploadResumeModal');
+                document.getElementById('uploadResumeForm').reset();
+                loadResumes();
+            } catch (error) {
+                displayError('Failed to upload resume');
+                console.error(error);
+            }
+        }
+
+        function openAddJobModal() {
+            document.getElementById('addJobModal').style.display = 'block';
+        }
+
+        async function addJobDescription(event) {
+            event.preventDefault();
+            
+            const jobName = document.getElementById('jobTitle').value;
+            const jobDesc = document.getElementById('jobDesc').value;
+            const saveToLibrary = document.getElementById('saveToLibrary').checked;
+            
+            const job = {
+                name: jobName,
+                description: jobDesc
+            };
+
+            // Save to library if checked
+            if (saveToLibrary) {
+                try {
+                    const response = await fetch(`${API_BASE}/user/job-descriptions`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(job)
+                    });
+
+                    if (!response.ok) throw new Error('Failed to save job');
+                    
+                    const data = await response.json();
+                    job.job_description_id = data.job_description_id;
+                    showSuccess('Job saved to library!');
+                } catch (error) {
+                    console.error('Failed to save to library:', error);
+                    displayError('Failed to save job to library');
+                }
+            }
+
+            jobDescriptions.push(job);
+            displayJobDescriptions();
+            closeModal('addJobModal');
+            document.getElementById('addJobForm').reset();
+            document.getElementById('saveToLibrary').checked = true; // Reset to default
+        }
+
+        async function loadSavedJobDescriptions() {
+            try {
+                const response = await fetch(`${API_BASE}/user/job-descriptions`);
+                const data = await response.json();
+                
+                if (data.job_descriptions && data.job_descriptions.length > 0) {
+                    jobDescriptions = data.job_descriptions.map(job => ({
+                        job_description_id: job.job_description_id,
+                        name: job.job_name,
+                        description: job.description_text,
+                        created_at: job.created_at,
+                        fromLibrary: true
+                    }));
+                    displayJobDescriptions();
+                    showSuccess(`Loaded ${data.job_descriptions.length} job(s) from library`);
+                } else {
+                    displayError('No saved job descriptions found');
+                }
+            } catch (error) {
+                displayError('Failed to load saved jobs');
+                console.error(error);
+            }
+        }
+
+        async function saveAllJobsToLibrary() {
+            let savedCount = 0;
+            let errorCount = 0;
+
+            for (const job of jobDescriptions) {
+                // Skip if already saved (has job_description_id)
+                if (job.job_description_id || job.fromLibrary) continue;
+
+                try {
+                    const response = await fetch(`${API_BASE}/user/job-descriptions`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            name: job.name,
+                            description: job.description
+                        })
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        job.job_description_id = data.job_description_id;
+                        job.fromLibrary = true;
+                        savedCount++;
+                    } else {
+                        errorCount++;
+                    }
+                } catch (error) {
+                    errorCount++;
+                    console.error('Failed to save job:', error);
+                }
+            }
+
+            if (savedCount > 0) {
+                showSuccess(`Saved ${savedCount} job(s) to library`);
+                displayJobDescriptions();
+            }
+            if (errorCount > 0) {
+                displayError(`Failed to save ${errorCount} job(s)`);
+            }
+        }
+
+        async function checkCachedResults(resumeId) {
+            try {
+                const response = await fetch(`${API_BASE}/user/resumes/${resumeId}/latest-matches`);
+                const data = await response.json();
+                
+                if (data.has_cached_results) {
+                    cachedResults = data;
+                    document.getElementById('cached-results-section').style.display = 'block';
+                    document.getElementById('cached-timestamp').textContent = 
+                        `Last analyzed: ${formatDate(data.timestamp)} • ${data.job_count} job(s)`;
+                }
+            } catch (error) {
+                console.error('Failed to check cached results:', error);
+            }
+        }
+
+        function showCachedResults() {
+            if (cachedResults && cachedResults.job_matches) {
+                displayJobMatches(cachedResults.job_matches);
+                document.getElementById('match-results').style.display = 'block';
+            }
+        }
+
+        function displayJobDescriptions() {
+            const list = document.getElementById('jobs-list');
+            
+            if (jobDescriptions.length === 0) {
+                list.innerHTML = '<p class="empty-state">Add job descriptions or load from your saved library</p>';
+                document.getElementById('matchButton').style.display = 'none';
+                document.getElementById('saveJobsButton').style.display = 'none';
+                return;
+            }
+
+            list.innerHTML = jobDescriptions.map((job, index) => `
+                <div class="job-item-simple">
+                    <div class="job-item-content">
+                        <h4>
+                            ${escapeHtml(job.name)}
+                            ${job.fromLibrary ? '<span class="badge-saved">💾 Saved</span>' : ''}
+                        </h4>
+                        <p class="job-desc-preview">${escapeHtml(job.description.substring(0, 150))}...</p>
+                        ${job.created_at ? `<p class="job-meta-small">Added: ${formatDate(job.created_at)}</p>` : ''}
+                    </div>
+                    <div>
+                        ${!job.fromLibrary && !job.job_description_id ? `
+                            <button class="btn-icon" onclick="saveSingleJob(${index})" title="Save to library">
+                                💾
+                            </button>
+                        ` : ''}
+                        <button class="btn-icon-danger" onclick="removeJob(${index})" title="Remove from current list">
+                            ✕
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('matchButton').style.display = 'block';
+            
+            // Show save all button if there are unsaved jobs
+            const hasUnsavedJobs = jobDescriptions.some(job => !job.job_description_id && !job.fromLibrary);
+            document.getElementById('saveJobsButton').style.display = hasUnsavedJobs ? 'inline-block' : 'none';
+        }
+
+        async function saveSingleJob(index) {
+            const job = jobDescriptions[index];
+            
+            try {
+                const response = await fetch(`${API_BASE}/user/job-descriptions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: job.name,
+                        description: job.description
+                    })
+                });
+
+                if (!response.ok) throw new Error('Failed to save job');
+                
+                const data = await response.json();
+                job.job_description_id = data.job_description_id;
+                job.fromLibrary = true;
+                showSuccess('Job saved to library!');
+                displayJobDescriptions();
+            } catch (error) {
+                displayError('Failed to save job');
+                console.error(error);
+            }
+        }
+
+        function removeJob(index) {
+            jobDescriptions.splice(index, 1);
+            displayJobDescriptions();
+        }
+
+        async function matchJobs() {
+            if (!selectedResumeId) {
+                displayError('Please select a resume');
+                return;
+            }
+
+            document.getElementById('match-results').style.display = 'block';
+            document.getElementById('ranked-jobs-list').innerHTML = '<p class="loading-text">Analyzing job matches with AI...</p>';
+
+            try {
+                let response;
+                
+                // If all jobs are from library, use the saved jobs endpoint
+                const allFromLibrary = jobDescriptions.length > 0 && 
+                                      jobDescriptions.every(job => job.fromLibrary || job.job_description_id);
+                
+                if (allFromLibrary && jobDescriptions.length > 0) {
+                    response = await fetch(`${API_BASE}/user/resumes/${selectedResumeId}/match-saved-jobs`, {
+                        method: 'POST'
+                    });
+                } else if (jobDescriptions.length === 0) {
+                    // Load saved jobs and match
+                    response = await fetch(`${API_BASE}/user/resumes/${selectedResumeId}/match-saved-jobs`, {
+                        method: 'POST'
+                    });
+                } else {
+                    // Use the traditional endpoint for unsaved/mixed jobs
+                    response = await fetch(`${API_BASE}/user/resumes/${selectedResumeId}/match-jobs`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(jobDescriptions)
+                    });
+                }
+
+                if (!response.ok) throw new Error('Failed to match jobs');
+
+                const data = await response.json();
+                displayJobMatches(data.job_matches);
+                cachedResults = data; // Update cached results
+                
+                // Hide cached results banner since we just ran fresh analysis
+                document.getElementById('cached-results-section').style.display = 'none';
+            } catch (error) {
+                displayError('Failed to match jobs');
+                console.error(error);
+                document.getElementById('ranked-jobs-list').innerHTML = '<p class="error-text">Failed to analyze job matches</p>';
+            }
+        }
+
+        function displayJobMatches(matches) {
+            const list = document.getElementById('ranked-jobs-list');
+            
+            if (!matches || matches.length === 0) {
+                list.innerHTML = '<p class="empty-state">No matches found</p>';
+                return;
+            }
+
+            list.innerHTML = matches.map(match => `
+                <div class="ranked-item">
+                    <div class="rank-badge">#${match.rank}</div>
+                    <div class="ranked-content">
+                        <h3>${escapeHtml(match.job_name)}</h3>
+                        <div class="score-bar">
+                            <div class="score-fill score-fill-user" style="width: ${match.score * 100}%"></div>
+                            <span class="score-text">${formatScore(match.score)}</span>
+                        </div>
+                        ${match.explanation ? `
+                            <div class="explanation">
+                                <strong>AI Analysis:</strong>
+                                <p>${escapeHtml(match.explanation)}</p>
+                            </div>
+                        ` : ''}
+                        <details class="job-details">
+                            <summary>View Full Job Description</summary>
+                            <p class="job-full-desc">${escapeHtml(match.description)}</p>
+                        </details>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function deleteResume(resumeId, resumeName) {
+            if (!confirm(`Are you sure you want to delete "${resumeName}"?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/user/resumes/${resumeId}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) throw new Error('Failed to delete resume');
+
+                showSuccess('Resume deleted successfully');
+                
+                if (selectedResumeId === resumeId) {
+                    selectedResumeId = null;
+                    document.getElementById('selected-resume-info').innerHTML = '<p class="empty-state">← Select a resume from the left to begin</p>';
+                    document.getElementById('job-descriptions-section').style.display = 'none';
+                }
+                
+                loadResumes();
+            } catch (error) {
+                displayError('Failed to delete resume');
+                console.error(error);
+            }
+        }
+    </script>
+</body>
+</html>
