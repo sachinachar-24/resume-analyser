@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HR Portal - Login & Sign Up</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 450px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            animation: slideUp 0.5s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .login-header {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .login-header .logo {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .login-header h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .login-header p {
+            font-size: 0.95rem;
+            opacity: 0.95;
+            font-weight: 300;
+        }
+
+        .login-body {
+            padding: 40px 30px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 15px 20px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #999;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .tab-button:hover {
+            color: #007bff;
+        }
+
+        .tab-button.active {
+            color: #007bff;
+            border-bottom-color: #007bff;
+        }
+
+        .form-container {
+            display: none;
+        }
+
+        .form-container.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            font-family: inherit;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+        }
+
+        .form-group input::placeholder {
+            color: #aaa;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 13px;
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 10px;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 123, 255, 0.3);
+        }
+
+        .submit-btn:active {
+            transform: translateY(0);
+        }
+
+        .footer-link {
+            text-align: center;
+            margin-top: 20px;
+            color: #666;
+            font-size: 0.95rem;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #007bff;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .back-link:hover {
+            color: #0056b3;
+            margin-left: 5px;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: none;
+            border: 1px solid #f5c6cb;
+            animation: slideDown 0.3s ease;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: none;
+            border: 1px solid #c3e6cb;
+            animation: slideDown 0.3s ease;
+        }
+
+        .success-message.show {
+            display: block;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            color: #007bff;
+            font-weight: 600;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .divider {
+            text-align: center;
+            margin: 25px 0;
+            color: #999;
+            font-size: 0.9rem;
+        }
+
+        .divider::before {
+            content: '';
+            display: inline-block;
+            width: 35%;
+            height: 1px;
+            background: #e0e0e0;
+            vertical-align: middle;
+            margin-right: 10px;
+        }
+
+        .divider::after {
+            content: '';
+            display: inline-block;
+            width: 35%;
+            height: 1px;
+            background: #e0e0e0;
+            vertical-align: middle;
+            margin-left: 10px;
+        }
+
+        @media (max-width: 480px) {
+            .login-container {
+                border-radius: 0;
+            }
+
+            .login-header {
+                padding: 30px 20px;
+            }
+
+            .login-header h1 {
+                font-size: 1.5rem;
+            }
+
+            .login-body {
+                padding: 30px 20px;
+            }
+
+            .tabs {
+                margin-bottom: 20px;
+            }
+
+            .tab-button {
+                font-size: 0.9rem;
+                padding: 12px 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <div class="logo">💼</div>
+            <h1>HR Portal</h1>
+            <p>Recruitment Management System</p>
+        </div>
+
+        <div class="login-body">
+            <a href="index.html" class="back-link">← Back to Home</a>
+
+            <div class="tabs">
+                <button class="tab-button active" onclick="switchTab('login')">Login</button>
+                <button class="tab-button" onclick="switchTab('signup')">Sign Up</button>
+            </div>
+
+            <!-- Login Form -->
+            <div id="loginForm" class="form-container active">
+                <div id="loginError" class="error-message"></div>
+                <form onsubmit="handleLogin(event)">
+                    <div class="form-group">
+                        <label for="loginEmail">Email Address</label>
+                        <input type="email" id="loginEmail" placeholder="your.email@company.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="loginPassword">Password</label>
+                        <input type="password" id="loginPassword" placeholder="••••••••" required>
+                    </div>
+                    <div class="loading" id="loginLoading">Authenticating...</div>
+                    <button type="submit" class="submit-btn" id="loginSubmitBtn">Login</button>
+                </form>
+            </div>
+
+            <!-- Sign Up Form -->
+            <div id="signupForm" class="form-container">
+                <div id="signupError" class="error-message"></div>
+                <div id="signupSuccess" class="success-message"></div>
+                <form onsubmit="handleSignup(event)">
+                    <div class="form-group">
+                        <label for="signupName">Full Name</label>
+                        <input type="text" id="signupName" placeholder="John Doe" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="signupEmail">Email Address</label>
+                        <input type="email" id="signupEmail" placeholder="your.email@company.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="signupPassword">Password</label>
+                        <input type="password" id="signupPassword" placeholder="Min. 6 characters" required minlength="6">
+                    </div>
+                    <div class="form-group">
+                        <label for="signupConfirmPassword">Confirm Password</label>
+                        <input type="password" id="signupConfirmPassword" placeholder="••••••••" required minlength="6">
+                    </div>
+                    <div class="loading" id="signupLoading">Creating account...</div>
+                    <button type="submit" class="submit-btn" id="signupSubmitBtn">Create Account</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080/api';
+
+        function switchTab(tab) {
+            // Hide all forms
+            document.getElementById('loginForm').classList.remove('active');
+            document.getElementById('signupForm').classList.remove('active');
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            
+            // Show selected form
+            if (tab === 'login') {
+                document.getElementById('loginForm').classList.add('active');
+                document.querySelectorAll('.tab-button')[0].classList.add('active');
+                clearMessages('login');
+            } else {
+                document.getElementById('signupForm').classList.add('active');
+                document.querySelectorAll('.tab-button')[1].classList.add('active');
+                clearMessages('signup');
+
+                // make sure we aren't carrying any stale token when creating a new account
+                localStorage.removeItem('hr_token');
+                localStorage.removeItem('hr_id');
+                localStorage.removeItem('hr_name');
+                localStorage.removeItem('hr_email');
+            }
+        }
+
+        function clearMessages(form) {
+            if (form === 'login') {
+                document.getElementById('loginError').classList.remove('show');
+            } else {
+                document.getElementById('signupError').classList.remove('show');
+                document.getElementById('signupSuccess').classList.remove('show');
+            }
+        }
+
+        function showError(form, message) {
+            const errorEl = document.getElementById(`${form}Error`);
+            errorEl.textContent = message;
+            errorEl.classList.add('show');
+            document.getElementById(`${form}Loading`).classList.remove('show');
+        }
+
+        function showSuccess(form, message) {
+            const successEl = document.getElementById(`${form}Success`);
+            successEl.textContent = message;
+            successEl.classList.add('show');
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            document.getElementById('loginLoading').classList.add('show');
+            document.getElementById('loginError').classList.remove('show');
+            document.getElementById('loginSubmitBtn').disabled = true;
+
+            try {
+                const response = await fetch(`${API_BASE}/hr/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    localStorage.setItem('hr_token', data.token);
+                    localStorage.setItem('hr_id', data.hr_id);
+                    localStorage.setItem('hr_name', data.name);
+                    localStorage.setItem('hr_email', data.email);
+                    
+                    // Redirect immediately to dashboard once token is stored
+                    window.location.href = 'hr_dashboard.html';
+                } else {
+                    const error = await response.json();
+                    showError('login', error.detail || 'Invalid email or password');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showError('login', 'Connection error. Please try again.');
+            } finally {
+                document.getElementById('loginSubmitBtn').disabled = false;
+            }
+        }
+
+        async function handleSignup(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById('signupName').value;
+            const email = document.getElementById('signupEmail').value;
+            const password = document.getElementById('signupPassword').value;
+            const confirmPassword = document.getElementById('signupConfirmPassword').value;
+            
+            if (password !== confirmPassword) {
+                showError('signup', 'Passwords do not match');
+                return;
+            }
+            
+            document.getElementById('signupLoading').classList.add('show');
+            document.getElementById('signupError').classList.remove('show');
+            document.getElementById('signupSuccess').classList.remove('show');
+            document.getElementById('signupSubmitBtn').disabled = true;
+
+            try {
+                const response = await fetch(`${API_BASE}/hr/signup`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, password })
+                });
+
+                if (response.ok) {
+                    showSuccess('signup', 'Account created successfully! Switching to login...');
+                    document.getElementById('signupLoading').classList.remove('show');
+                    
+                    // Clear form and switch to login after delay
+                    setTimeout(() => {
+                        document.getElementById('signupName').value = '';
+                        document.getElementById('signupEmail').value = '';
+                        document.getElementById('signupPassword').value = '';
+                        document.getElementById('signupConfirmPassword').value = '';
+                        switchTab('login');
+                    }, 2000);
+                } else {
+                    const error = await response.json();
+                    showError('signup', error.detail || 'Error creating account');
+                }
+            } catch (error) {
+                console.error('Signup error:', error);
+                showError('signup', 'Connection error. Please try again.');
+            } finally {
+                document.getElementById('signupSubmitBtn').disabled = false;
+            }
+        }
+
+        // On initial load we only want to interrupt users who are trying to
+        // *log in*.  If they're going to the sign-up tab we silently clear any
+        // existing credentials so the form works as expected.
+        window.addEventListener('DOMContentLoaded', () => {
+            const token = localStorage.getItem('hr_token');
+            if (!token) return;
+
+            // if the login form is active by default (it is), ask if they want to
+            // continue.  If they switch to the signup tab later we clear the token
+            // there instead.
+            const hrName = localStorage.getItem('hr_name') || '';
+            const msg = hrName
+                ? `You appear to be logged in as ${hrName}.\nContinue to dashboard?` \
+                : 'You appear to be already logged in.\nContinue to dashboard?';
+            if (confirm(msg)) {
+                window.location.href = 'hr_dashboard.html';
+            } else {
+                // clear any stale credentials and let the user login again
+                localStorage.removeItem('hr_token');
+                localStorage.removeItem('hr_id');
+                localStorage.removeItem('hr_name');
+                localStorage.removeItem('hr_email');
+            }
+        });
+    </script>
+</body>
+</html>

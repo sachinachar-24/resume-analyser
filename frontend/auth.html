@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Analyzer - Login</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .auth-card {
+            width: min(500px, 100%);
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 25px 70px rgba(0,0,0,0.2);
+            overflow: hidden;
+            padding: 30px;
+        }
+        .auth-header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        .auth-header h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .auth-header p {
+            color: #6c757d;
+        }
+        .tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 25px;
+        }
+        .tab-button {
+            flex: 1;
+            border: 1px solid #e0e0e0;
+            background: #f8f9fa;
+            color: #495057;
+            padding: 14px 0;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        .tab-button.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+        .form-container {
+            display: none;
+        }
+        .form-container.active {
+            display: block;
+        }
+        .form-group {
+            margin-bottom: 18px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #444;
+            font-weight: 600;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid #ced4da;
+            font-size: 1rem;
+        }
+        .submit-btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            background: #007bff;
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .submit-btn:hover {
+            filter: brightness(1.05);
+        }
+        .message {
+            margin-bottom: 16px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            display: none;
+        }
+        .message.show {
+            display: block;
+        }
+        .message.error {
+            background: #f8d7da;
+            color: #842029;
+            border: 1px solid #f5c2c7;
+        }
+        .message.success {
+            background: #d1e7dd;
+            color: #0f5132;
+            border: 1px solid #badbcc;
+        }
+        .footer-link {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .footer-link a {
+            color: #007bff;
+            text-decoration: none;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-card">
+        <div class="auth-header">
+            <h1>Resume Analyzer Login</h1>
+            <p>Sign in with your email and password or create a new account.</p>
+        </div>
+
+        <div class="tabs">
+            <button id="loginTab" class="tab-button active" type="button" onclick="switchAuthTab('login')">Login</button>
+            <button id="signupTab" class="tab-button" type="button" onclick="switchAuthTab('signup')">Sign Up</button>
+        </div>
+
+        <div id="loginForm" class="form-container active">
+            <div id="loginMessage" class="message error"></div>
+            <form onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label for="loginEmail">Email</label>
+                    <input type="email" id="loginEmail" required placeholder="you@example.com">
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" required placeholder="••••••••">
+                </div>
+                <button type="submit" class="submit-btn">Login</button>
+            </form>
+        </div>
+
+        <div id="signupForm" class="form-container">
+            <div id="signupMessage" class="message error"></div>
+            <div id="signupSuccess" class="message success"></div>
+            <form onsubmit="handleSignup(event)">
+                <div class="form-group">
+                    <label for="signupEmail">Email</label>
+                    <input type="email" id="signupEmail" required placeholder="you@example.com">
+                </div>
+                <div class="form-group">
+                    <label for="signupPassword">Password</label>
+                    <input type="password" id="signupPassword" required minlength="6" placeholder="Min. 6 characters">
+                </div>
+                <div class="form-group">
+                    <label for="signupRole">Account Type</label>
+                    <select id="signupRole" required>
+                        <option value="user">Job Seeker</option>
+                        <option value="hr">HR</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="signupConfirmPassword">Confirm Password</label>
+                    <input type="password" id="signupConfirmPassword" required minlength="6" placeholder="Confirm password">
+                </div>
+                <button type="submit" class="submit-btn">Create Account</button>
+            </form>
+        </div>
+
+        <div class="footer-link">
+            <a href="index.html">← Back to Home</a>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080/api';
+
+        function switchAuthTab(tab) {
+            document.getElementById('loginForm').classList.toggle('active', tab === 'login');
+            document.getElementById('signupForm').classList.toggle('active', tab === 'signup');
+            document.getElementById('loginTab').classList.toggle('active', tab === 'login');
+            document.getElementById('signupTab').classList.toggle('active', tab === 'signup');
+            clearMessages();
+        }
+
+        function clearMessages() {
+            document.getElementById('loginMessage').classList.remove('show');
+            document.getElementById('signupMessage').classList.remove('show');
+            document.getElementById('signupSuccess').classList.remove('show');
+        }
+
+        function showMessage(elementId, message, type = 'error') {
+            const el = document.getElementById(elementId);
+            el.textContent = message;
+            el.className = `message ${type} show`;
+        }
+
+        function getNextPage() {
+            const params = new URLSearchParams(window.location.search);
+            const next = params.get('next');
+            if (!next) return 'index.html';
+            if (next === 'hr' || next === 'hr.html') return 'hr.html';
+            if (next === 'user' || next === 'user.html') return 'user.html';
+            return next;
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            clearMessages();
+
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    showMessage('loginMessage', error.detail || 'Login failed');
+                    return;
+                }
+
+                const data = await response.json();
+                localStorage.setItem('access_token', data.access_token);
+                localStorage.setItem('user_email', data.email);
+                localStorage.setItem('is_admin', data.is_admin ? 'true' : 'false');
+                window.location.href = getNextPage();
+            } catch (error) {
+                console.error(error);
+                showMessage('loginMessage', 'Unable to connect to backend');
+            }
+        }
+
+        async function handleSignup(event) {
+            event.preventDefault();
+            clearMessages();
+
+            const email = document.getElementById('signupEmail').value.trim();
+            const password = document.getElementById('signupPassword').value;
+            const confirmPassword = document.getElementById('signupConfirmPassword').value;
+            const role = document.getElementById('signupRole').value;
+
+            if (password !== confirmPassword) {
+                showMessage('signupMessage', 'Passwords do not match');
+                return;
+            }
+            if (password.length < 6) {
+                showMessage('signupMessage', 'Password must be at least 6 characters');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password, role })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    showMessage('signupMessage', error.detail || 'Registration failed');
+                    return;
+                }
+
+                showMessage('signupSuccess', 'Account created successfully. Please login.', 'success');
+                switchAuthTab('login');
+            } catch (error) {
+                console.error(error);
+                showMessage('signupMessage', 'Unable to connect to backend');
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const token = localStorage.getItem('access_token');
+            if (token) {
+                const returnPage = getNextPage();
+                if (returnPage !== 'index.html') {
+                    window.location.href = returnPage;
+                }
+            }
+        });
+    </script>
+</body>
+</html>

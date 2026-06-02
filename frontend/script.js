@@ -69,8 +69,69 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+function getAuthHeaders() {
+    const token = localStorage.getItem('access_token');
+    return token ? { 'Authorization': `Bearer ${token}` } : {};
+}
+
+async function authFetch(url, options = {}) {
+    options.headers = {
+        ...(options.headers || {}),
+        ...getAuthHeaders(),
+    };
+
+    const response = await fetch(url, options);
+    if (response.status === 401) {
+        const nextPage = window.location.pathname.split('/').pop();
+        window.location.href = `auth.html?next=${encodeURIComponent(nextPage)}`;
+        return response;
+    }
+    return response;
+}
+
+function logout() {
+    localStorage.removeItem('access_token');
+    window.location.href = 'auth.html';
+}
+
 // Open PDF in modal viewer
-function openPDF(resumeId) {
+async function openPDF(resumeId) {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+        displayError('You must be logged in to view PDFs');
+        window.location.href = 'auth.html';
+        return;
+    }
+
+    const url = `http://localhost:8080/api/resumes/${resumeId}/pdf`;
+    let response;
+    try {
+        response = await fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+    } catch (err) {
+        displayError('Failed to fetch resume PDF');
+        console.error(err);
+        return;
+    }
+
+    if (response.status === 401) {
+        displayError('Missing authorization header or invalid session');
+        window.location.href = 'auth.html';
+        return;
+    }
+
+    if (!response.ok) {
+        const message = await response.text().catch(() => response.statusText);
+        displayError(`Could not load PDF: ${message}`);
+        return;
+    }
+
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+
     // Create modal if it doesn't exist
     let modal = document.getElementById('pdfViewerModal');
     if (!modal) {
@@ -82,28 +143,26 @@ function openPDF(resumeId) {
                 <div class="pdf-viewer-header">
                     <h2>Resume PDF Viewer</h2>
                     <div>
-                        <button class="btn-secondary-small" onclick="window.open('http://localhost:8080/api/resumes/${resumeId}/pdf', '_blank')">
+                        <button id="openPdfNewTabBtn" class="btn-secondary-small">
                             🔗 Open in New Tab
                         </button>
                         <span class="close" onclick="closeModal('pdfViewerModal')">&times;</span>
                     </div>
                 </div>
                 <div class="pdf-viewer-container">
-                    <iframe id="pdfIframe" src="http://localhost:8080/api/resumes/${resumeId}/pdf" type="application/pdf"></iframe>
+                    <iframe id="pdfIframe" type="application/pdf"></iframe>
                 </div>
             </div>
         `;
         document.body.appendChild(modal);
-    } else {
-        // Update iframe src for new resume
-        const iframe = modal.querySelector('#pdfIframe');
-        iframe.src = `http://localhost:8080/api/resumes/${resumeId}/pdf`;
-        
-        // Update "Open in New Tab" button
-        const openTabBtn = modal.querySelector('.btn-secondary-small');
-        openTabBtn.onclick = () => window.open(`http://localhost:8080/api/resumes/${resumeId}/pdf`, '_blank');
     }
-    
+
+    const iframe = modal.querySelector('#pdfIframe');
+    iframe.src = blobUrl;
+
+    const openTabBtn = modal.querySelector('#openPdfNewTabBtn');
+    openTabBtn.onclick = () => window.open(blobUrl, '_blank');
+
     modal.style.display = 'block';
 }
 

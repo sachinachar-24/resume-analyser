@@ -10,7 +10,10 @@
     <div class="navbar">
         <div class="nav-content">
             <h1>👔 HR Portal</h1>
-            <a href="index.html" class="btn-secondary">← Back to Home</a>
+            <div>
+                <a href="index.html" class="btn-secondary">← Back to Home</a>
+                <button class="btn-secondary" onclick="logout()" style="margin-left: 10px;">Logout</button>
+            </div>
         </div>
     </div>
 
@@ -97,11 +100,53 @@
         let currentJobId = null;
 
         // Load jobs on page load
-        window.addEventListener('DOMContentLoaded', loadJobs);
+        window.addEventListener('DOMContentLoaded', initPage);
+
+        async function initPage() {
+            const authReady = await requireAuth('hr');
+            if (!authReady) return;
+            await loadJobs();
+        }
+
+        async function requireAuth(nextPage) {
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                window.location.href = `auth.html?next=${nextPage}`;
+                return false;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/me`, {
+                    headers: getAuthHeaders()
+                });
+                if (!response.ok) {
+                    localStorage.removeItem('access_token');
+                    window.location.href = `auth.html?next=${nextPage}`;
+                    return false;
+                }
+
+                const data = await response.json();
+                if (!data.is_admin && data.role !== 'hr') {
+                    localStorage.removeItem('access_token');
+                    showToast('Access denied: HR account required', 'error');
+                    window.location.href = 'auth.html';
+                    return false;
+                }
+
+                return true;
+            } catch (error) {
+                localStorage.removeItem('access_token');
+                window.location.href = `auth.html?next=${nextPage}`;
+                return false;
+            }
+        }
 
         async function loadJobs() {
             try {
-                const response = await fetch(`${API_BASE}/hr/jobs`);
+                const response = await authFetch(`${API_BASE}/hr/jobs`);
+                if (!response.ok) {
+                    throw new Error('Failed to load jobs');
+                }
                 const data = await response.json();
                 await displayJobs(data.jobs);
             } catch (error) {
@@ -121,7 +166,7 @@
             // Check for cached results for each job
             const jobsWithCache = await Promise.all(jobs.map(async job => {
                 try {
-                    const response = await fetch(`${API_BASE}/hr/jobs/${job.job_id}/latest-ranking`);
+                    const response = await authFetch(`${API_BASE}/hr/jobs/${job.job_id}/latest-ranking`);
                     const data = await response.json();
                     return { ...job, cachedResults: data };
                 } catch (error) {
@@ -179,7 +224,7 @@
             formData.append('description', document.getElementById('jobDescription').value);
 
             try {
-                const response = await fetch(`${API_BASE}/hr/jobs`, {
+                const response = await authFetch(`${API_BASE}/hr/jobs`, {
                     method: 'POST',
                     body: formData
                 });
@@ -217,7 +262,7 @@
             document.getElementById('uploadProgress').style.display = 'block';
             
             try {
-                const response = await fetch(`${API_BASE}/hr/jobs/${currentJobId}/resumes`, {
+                const response = await authFetch(`${API_BASE}/hr/jobs/${currentJobId}/resumes`, {
                     method: 'POST',
                     body: formData
                 });
@@ -244,7 +289,7 @@
             document.getElementById('rankedResumesList').innerHTML = '<p class="loading-text">Analyzing resumes with AI...</p>';
 
             try {
-                const response = await fetch(`${API_BASE}/hr/jobs/${jobId}/rank`, {
+                const response = await authFetch(`${API_BASE}/hr/jobs/${jobId}/rank`, {
                     method: 'POST'
                 });
 
@@ -261,12 +306,12 @@
 
         async function showCachedRanking(jobId, jobName) {
             currentJobId = jobId;
-            document.getElementById('rankedJobName').textContent = jobName + ' (Cached Results)';
+            document.getElementById('rankedJobName').textContent = jobName;
             document.getElementById('rankedResumesModal').style.display = 'block';
             document.getElementById('rankedResumesList').innerHTML = '<p class="loading-text">Loading previous results...</p>';
 
             try {
-                const response = await fetch(`${API_BASE}/hr/jobs/${jobId}/latest-ranking`);
+                const response = await authFetch(`${API_BASE}/hr/jobs/${jobId}/latest-ranking`);
                 const data = await response.json();
                 
                 if (data.has_cached_results) {
@@ -318,7 +363,7 @@
             document.getElementById('jobDetailsContent').innerHTML = '<p class="loading-text">Loading job details...</p>';
 
             try {
-                const response = await fetch(`${API_BASE}/hr/jobs/${jobId}`);
+                const response = await authFetch(`${API_BASE}/hr/jobs/${jobId}`);
                 if (!response.ok) throw new Error('Failed to load job details');
 
                 const data = await response.json();
@@ -368,7 +413,7 @@
             }
 
             try {
-                const response = await fetch(`${API_BASE}/hr/jobs/${jobId}`, {
+                const response = await authFetch(`${API_BASE}/hr/jobs/${jobId}`, {
                     method: 'DELETE'
                 });
 

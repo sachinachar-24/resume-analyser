@@ -10,7 +10,10 @@
     <div class="navbar user-nav">
         <div class="nav-content">
             <h1>🎓 Job Seeker Portal</h1>
-            <a href="index.html" class="btn-secondary">← Back to Home</a>
+            <div>
+                <a href="index.html" class="btn-secondary">← Back to Home</a>
+                <button class="btn-secondary" onclick="logout()" style="margin-left: 10px;">Logout</button>
+            </div>
         </div>
     </div>
 
@@ -133,11 +136,50 @@
         let cachedResults = null;
 
         // Load resumes on page load
-        window.addEventListener('DOMContentLoaded', loadResumes);
+        window.addEventListener('DOMContentLoaded', initPage);
+
+        async function initPage() {
+            const authReady = await requireAuth('user');
+            if (!authReady) return;
+            await loadResumes();
+        }
+
+        async function requireAuth(nextPage) {
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                window.location.href = `auth.html?next=${nextPage}`;
+                return false;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/me`, {
+                    headers: getAuthHeaders()
+                });
+                if (!response.ok) {
+                    localStorage.removeItem('access_token');
+                    window.location.href = `auth.html?next=${nextPage}`;
+                    return false;
+                }
+
+                const data = await response.json();
+                if (!data.is_admin && data.role !== 'user') {
+                    localStorage.removeItem('access_token');
+                    showToast('Access denied: Job seeker account required', 'error');
+                    window.location.href = 'auth.html';
+                    return false;
+                }
+
+                return true;
+            } catch (error) {
+                localStorage.removeItem('access_token');
+                window.location.href = `auth.html?next=${nextPage}`;
+                return false;
+            }
+        }
 
         async function loadResumes() {
             try {
-                const response = await fetch(`${API_BASE}/user/resumes`);
+                const response = await authFetch(`${API_BASE}/user/resumes`);
                 const data = await response.json();
                 displayResumes(data.resumes);
             } catch (error) {
@@ -156,7 +198,7 @@
 
             list.innerHTML = resumes.map(resume => `
                 <div class="resume-item ${selectedResumeId === resume.resume_id ? 'selected' : ''}" 
-                     onclick="selectResume('${resume.resume_id}', '${escapeHtml(resume.resume_name)}')">
+                     onclick="selectResume(event, '${resume.resume_id}', '${escapeHtml(resume.resume_name)}')">
                     <div class="resume-item-content">
                         <h4>${escapeHtml(resume.resume_name)}</h4>
                         <p class="resume-meta">${escapeHtml(resume.filename)}</p>
@@ -174,7 +216,7 @@
             `).join('');
         }
 
-        function selectResume(resumeId, resumeName) {
+        function selectResume(event, resumeId, resumeName) {
             selectedResumeId = resumeId;
             jobDescriptions = [];
             cachedResults = null;
@@ -218,7 +260,7 @@
             formData.append('resume_name', document.getElementById('resumeName').value);
 
             try {
-                const response = await fetch(`${API_BASE}/user/resumes`, {
+                const response = await authFetch(`${API_BASE}/user/resumes`, {
                     method: 'POST',
                     body: formData
                 });
@@ -255,7 +297,7 @@
             // Save to library if checked
             if (saveToLibrary) {
                 try {
-                    const response = await fetch(`${API_BASE}/user/job-descriptions`, {
+                    const response = await authFetch(`${API_BASE}/user/job-descriptions`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -283,7 +325,7 @@
 
         async function loadSavedJobDescriptions() {
             try {
-                const response = await fetch(`${API_BASE}/user/job-descriptions`);
+                const response = await authFetch(`${API_BASE}/user/job-descriptions`);
                 const data = await response.json();
                 
                 if (data.job_descriptions && data.job_descriptions.length > 0) {
@@ -314,7 +356,7 @@
                 if (job.job_description_id || job.fromLibrary) continue;
 
                 try {
-                    const response = await fetch(`${API_BASE}/user/job-descriptions`, {
+                    const response = await authFetch(`${API_BASE}/user/job-descriptions`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -350,7 +392,7 @@
 
         async function checkCachedResults(resumeId) {
             try {
-                const response = await fetch(`${API_BASE}/user/resumes/${resumeId}/latest-matches`);
+                const response = await authFetch(`${API_BASE}/user/resumes/${resumeId}/latest-matches`);
                 const data = await response.json();
                 
                 if (data.has_cached_results) {
@@ -415,8 +457,7 @@
             const job = jobDescriptions[index];
             
             try {
-                const response = await fetch(`${API_BASE}/user/job-descriptions`, {
-                    method: 'POST',
+                    const response = await authFetch(`${API_BASE}/user/job-descriptions`, {
                     headers: {
                         'Content-Type': 'application/json'
                     },
@@ -461,17 +502,17 @@
                                       jobDescriptions.every(job => job.fromLibrary || job.job_description_id);
                 
                 if (allFromLibrary && jobDescriptions.length > 0) {
-                    response = await fetch(`${API_BASE}/user/resumes/${selectedResumeId}/match-saved-jobs`, {
+                    response = await authFetch(`${API_BASE}/user/resumes/${selectedResumeId}/match-saved-jobs`, {
                         method: 'POST'
                     });
                 } else if (jobDescriptions.length === 0) {
                     // Load saved jobs and match
-                    response = await fetch(`${API_BASE}/user/resumes/${selectedResumeId}/match-saved-jobs`, {
+                    response = await authFetch(`${API_BASE}/user/resumes/${selectedResumeId}/match-saved-jobs`, {
                         method: 'POST'
                     });
                 } else {
                     // Use the traditional endpoint for unsaved/mixed jobs
-                    response = await fetch(`${API_BASE}/user/resumes/${selectedResumeId}/match-jobs`, {
+                    response = await authFetch(`${API_BASE}/user/resumes/${selectedResumeId}/match-jobs`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -533,7 +574,7 @@
             }
 
             try {
-                const response = await fetch(`${API_BASE}/user/resumes/${resumeId}`, {
+                const response = await authFetch(`${API_BASE}/user/resumes/${resumeId}`, {
                     method: 'DELETE'
                 });
 
